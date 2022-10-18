@@ -1,0 +1,78 @@
+version(1);
+project_name = "my_project";
+
+patterns = {
+"*.c",
+"*.cpp",
+"*.h",
+"*.m",
+"*.mm",
+"*.bat",
+"*.sh",
+"*.4coder",
+"*.txt",
+};
+blacklist_patterns = {
+".*",
+};
+load_paths_custom = {
+ {"."},
+};
+load_paths = {
+ { load_paths_custom, .os = "linux"}
+};
+
+build_linux = "scripts/build.sh";
+rebuild_linux = "scripts/rebuild.sh";
+build_analys_linux = "scripts/build-analys.sh";
+run_linux = "./bin/my_project-console -c config/project.ini";
+browse_docs = "scripts/browse-docs.sh";
+
+
+command_list = {
+ { .name = "build",
+   .out = "*compilation*",
+   .footer_panel = true,
+   .save_dirty_files = true,
+   .cursor_at_end = true,
+   .cmd = { {build_linux , .os ="linux"}, }, 
+ },
+ 
+ { .name = "rebuild",
+   .out = "*compilation*",
+   .footer_panel = true,
+   .save_dirty_files = true,
+   .cursor_at_end = true,
+   .cmd = { {rebuild_linux, .os ="linux" }, },
+ },
+ 
+ { .name = "static-analys",
+   .out = "*compilation*",
+   .footer_panel = true,
+   .save_dirty_files = true,
+   .cursor_at_end = true,
+   .cmd = { {build_analys_linux, .os ="linux" }, },
+ },
+ 
+ { .name = "run",
+   .out = "*my_project*",
+   .footer_panel = true,
+   .save_dirty_files = true,
+   .cursor_at_end = true,
+   .cmd = { {run_linux, .os ="linux" }, },
+ },
+ 
+ { .name = "docs",
+   .out = "*documentation*",
+   .footer_panel = true,
+   .save_dirty_files = true,
+   .cursor_at_end = true,
+   .cmd = { {browse_docs, .os ="linux" }, },
+ }
+};
+
+fkey_command[1] = "build";
+fkey_command[2] = "rebuild";
+fkey_command[3] = "static-analys";
+fkey_command[7] = "run";
+fkey_command[8] = "docs";
