@@ -16,8 +16,8 @@
 #define ARG_BUFFER_SHORT "b"
 
 void buildArgs(Args &args) {
-    args.addPattern("./http_get -p 9090 -f / -b 64 - run server shared "
-                    "folder '/' at 9090 port with buffer size 64 Kb");
+    args.addPattern("./http_get -p 9090 -f / - run server shared "
+                    "folder '/' at 9090 port");
 
     args.add({ARG_HELP, ARG_HELP_SHORT}, "Print help message");
 
@@ -38,10 +38,5 @@ void buildArgs(Args &args) {
 
     args.add({ARG_SIGINT, ARG_SIGINT_SHORT},
              "Sigint handling count before abort",
-             is_int);
-
-    args.add({ARG_BUFFER, ARG_BUFFER_SHORT},
-             "Http server buffer size for big binary packages, default "
-             "is 32Kb",
              is_int);
 }

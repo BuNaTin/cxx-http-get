@@ -15,7 +15,11 @@
 
 namespace {
 
-void workWithClient(i32 fd, const u64 size) { u8 buffer[size]; }
+void workWithClient(i32 fd) {
+    const u64 size = 32 * 1024;
+    u8 buffer[size] = {0};
+    ;
+}
 
 std::string getPath(const std::string &file) {
     std::size_t pos = file.find_last_of('/') + 1;
@@ -46,13 +50,11 @@ private:
 public:
     ServerImpl(const u16 port,
                const std::string &shared_folder,
-               const u32 sig_max,
-               const u64 buffer_size);
+               const u32 sig_max);
     virtual ~ServerImpl() = default;
 
     // data
 private:
-    const u64 m_buffer_size;
     std::string m_shared_folder;
     std::atomic_flag m_sig_handler = ATOMIC_FLAG_INIT;
     i32 m_fd;
@@ -74,10 +76,6 @@ ABuilder &ABuilder::setSigint(u32 sigint) {
     m_sig_max = sigint;
     return *this;
 }
-ABuilder &ABuilder::setBufferSizeKb(u32 size) {
-    m_kb_buffer_size = size;
-    return *this;
-}
 
 std::unique_ptr<Server> Server::Builder::build() {
     // TODO:
@@ -85,16 +83,13 @@ std::unique_ptr<Server> Server::Builder::build() {
     return std::make_unique<ServerImpl>(
             m_port,
             m_folder,
-            m_sig_max,
-            static_cast<u64>(m_kb_buffer_size) * 1024);
+            m_sig_max);
 }
 
 ServerImpl::ServerImpl(const u16 port,
                        const std::string &shared_folder,
-                       const u32 sig_max,
-                       const u64 buffer_size)
-        : m_buffer_size(buffer_size),
-          m_shared_folder(shared_folder),
+                       const u32 sig_max)
+        : m_shared_folder(shared_folder),
           m_fd(-1),
           m_sig_max(sig_max) {
     shutdown_handler = [this](int) {
@@ -172,7 +167,7 @@ bool ServerImpl::start() noexcept {
             return false;
         }
         std::cout << "Client No" << client_sock << std::endl;
-        workWithClient(client_sock, m_buffer_size);
+        workWithClient(client_sock);
         if (close(client_sock) < 0) {
             std::cerr << "HttpServer could not close client "
                       << client_sock << std::endl;
