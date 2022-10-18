@@ -8,7 +8,7 @@
 
 namespace http_get {
 
-class Application {
+class Server {
     // interface
 public:
     virtual bool start() noexcept = 0;
@@ -17,17 +17,17 @@ public:
 public:
     class Builder;
 
-    virtual ~Application() {}
+    virtual ~Server() {}
 };
 
-class Application::Builder {
+class Server::Builder {
 public:
     Builder &setPort(u16 port);
     Builder &setFolderName(const std::string &folder);
     Builder &setSigint(u32 sigint);
     Builder &setBufferSizeKb(u32 size);
 
-    std::unique_ptr<Application> build();
+    std::unique_ptr<Server> build();
 
 private:
     std::string m_folder = "./";
