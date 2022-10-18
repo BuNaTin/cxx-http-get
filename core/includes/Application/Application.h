@@ -32,7 +32,6 @@ public:
 private:
     std::string m_folder = "./";
     u32 m_sig_max = 3;
-    u32 m_kb_buffer_size = 32; // 32Kb
     u16 m_port = 8080;
 };
 
