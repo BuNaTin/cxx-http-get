@@ -7,16 +7,22 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 set(PUBLIC_INCLUDES
-    ${INC_DIR}/Application/Application.h
+    ${INC_DIR}/Application/Server.h
     ${INC_DIR}/Application/Args.h
 )
 
 set(PRIVATE_INCLUDES
+    ${SRC_DIR}/utils/strFmt.h
+    ${SRC_DIR}/utils/ClearFile.h
+    ${SRC_DIR}/utils/FileSize.h
+    ${SRC_DIR}/Http/Response.h
+    ${SRC_DIR}/Http/Request.h
 )
 
 set(PRIVATE_SOURCES
-    ${SRC_DIR}/Application/Application.cpp
+    ${SRC_DIR}/Application/Server.cpp
     ${SRC_DIR}/Application/Args.cpp
+    ${SRC_DIR}/utils/strFmt.cpp
 )
 
 set(SOURCES

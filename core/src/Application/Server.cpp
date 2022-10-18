@@ -4,20 +4,18 @@
 #include <cstdlib>
 #include <functional>
 #include <future>
+#include <netdb.h>
 #include <numeric>
 #include <signal.h>
-#include <netdb.h>
-#include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include <iostream>
 
 namespace {
 
-void workWithClient(i32 fd) {
-
-}
+void workWithClient(i32 fd, const u64 size) { u8 buffer[size]; }
 
 std::string getPath(const std::string &file) {
     std::size_t pos = file.find_last_of('/') + 1;
@@ -49,12 +47,12 @@ public:
     ServerImpl(const u16 port,
                const std::string &shared_folder,
                const u32 sig_max,
-               const u32 buffer_size);
+               const u64 buffer_size);
     virtual ~ServerImpl() = default;
 
     // data
 private:
-    const u32 m_buffer_size;
+    const u64 m_buffer_size;
     std::string m_shared_folder;
     std::atomic_flag m_sig_handler = ATOMIC_FLAG_INIT;
     i32 m_fd;
@@ -85,13 +83,16 @@ std::unique_ptr<Server> Server::Builder::build() {
     // TODO:
     //  - folder name check
     return std::make_unique<ServerImpl>(
-            m_port, m_folder, m_sig_max, m_kb_buffer_size * 1024);
+            m_port,
+            m_folder,
+            m_sig_max,
+            static_cast<u64>(m_kb_buffer_size) * 1024);
 }
 
 ServerImpl::ServerImpl(const u16 port,
                        const std::string &shared_folder,
                        const u32 sig_max,
-                       const u32 buffer_size)
+                       const u64 buffer_size)
         : m_buffer_size(buffer_size),
           m_shared_folder(shared_folder),
           m_fd(-1),
@@ -160,8 +161,7 @@ bool ServerImpl::start() noexcept {
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
         // std::cout << "HttpServer - tik" << std::endl;
-        if (select(m_fd + 1, &dummy, NULL, NULL, &timeout) <=
-            0) {
+        if (select(m_fd + 1, &dummy, NULL, NULL, &timeout) <= 0) {
             continue;
         };
         client_sock = accept(m_fd,
@@ -172,7 +172,7 @@ bool ServerImpl::start() noexcept {
             return false;
         }
         std::cout << "Client No" << client_sock << std::endl;
-        workWithClient(client_sock);
+        workWithClient(client_sock, m_buffer_size);
         if (close(client_sock) < 0) {
             std::cerr << "HttpServer could not close client "
                       << client_sock << std::endl;
