@@ -1,4 +1,4 @@
-#include <Application/Server.h>
+#include <Application/Application.h>
 
 #include <iostream>
 
@@ -22,8 +22,8 @@ bool processArgs(Args &args, int argc, char *argv[]) noexcept {
     return true;
 }
 
-http_get::Server::Builder createFromArgs(const Args &args) {
-    http_get::Server::Builder builder;
+http_get::Application::Builder createFromArgs(const Args &args) {
+    http_get::Application::Builder builder;
     if (args.has(ARG_PORT)) {
         builder.setPort(std::stoi(args.get(ARG_PORT)));
     }

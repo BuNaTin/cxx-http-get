@@ -5,7 +5,7 @@
 #include <utils/FileSize.h>
 #include <utils/strFmt.h>
 
-namespace Mib3 { inline namespace Http {
+namespace http_get { inline namespace Http {
 
 class Response {
 public:
