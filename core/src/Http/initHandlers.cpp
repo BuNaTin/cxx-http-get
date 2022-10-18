@@ -22,6 +22,24 @@ std::string urlDecode(const std::string &SRC) {
     return ret;
 }
 
+std::string htmlFileList(tinydir_dir &dir, const i32 from = 1) {
+    std::string payload = "<h1>Files:</h1>";
+    std::string html = "<li><a href=\"%\">%</a></li>\n";
+    for (u32 i = from; i < dir.n_files; ++i) {
+        tinydir_file file;
+        tinydir_readfile_n(&dir, &file, i);
+
+        std::string name = file.name;
+        if (file.is_dir) {
+            name += '/';
+        }
+        payload += utils::strFmt(html, name, name);
+
+        tinydir_next(&dir);
+    }
+    return payload;
+}
+
 } // namespace
 
 namespace http_get { inline namespace Http {
@@ -45,22 +63,7 @@ void initHanlders(Http::Server *server,
                             filename);
                 } else if (tinydir_open_sorted(
                                    &dir, filename.c_str()) != -1) {
-                    std::string payload = "<h1>Files:</h1>";
-                    std::string html = "<li><a href=\"%\">%</a></li>\n";
-
-                    for (u32 i = 1; i < dir.n_files; ++i) {
-                        tinydir_file file;
-                        tinydir_readfile_n(&dir, &file, i);
-
-                        std::string name = file.name;
-                        if (file.is_dir) {
-                            name += '/';
-                        }
-                        payload += utils::strFmt(html, name, name);
-
-                        tinydir_next(&dir);
-                    }
-
+                    std::string payload = htmlFileList(dir);
                     tinydir_close(&dir);
 
                     return Http::Response()
@@ -80,21 +83,7 @@ void initHanlders(Http::Server *server,
                 tinydir_dir dir;
                 tinydir_open_sorted(&dir, shared_folder.c_str());
 
-                std::string payload = "<h1>Files:</h1>";
-                std::string html = "<li><a href=\"%\">%</a></li>\n";
-
-                for (u32 i = 2; i < dir.n_files; ++i) {
-                    tinydir_file file;
-                    tinydir_readfile_n(&dir, &file, i);
-
-                    std::string name = file.name;
-                    if (file.is_dir) {
-                        name += '/';
-                    }
-                    payload += utils::strFmt(html, name, name);
-
-                    tinydir_next(&dir);
-                }
+                std::string payload = htmlFileList(dir, 2);
 
                 tinydir_close(&dir);
 
