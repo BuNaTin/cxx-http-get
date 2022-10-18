@@ -1,0 +1,14 @@
+Source: simple-http-get
+Section: comm
+Priority: optional
+Maintainer: Daniil <k9687928424@gmail.com>
+Build-Depends: debhelper, cmake, libstdc++6
+Standards-Version: 3.9.8
+
+Package: cxx-http-get
+Section: comm
+Priority: optional
+Architecture: any
+Essential: no
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Console app share folder
