@@ -18,12 +18,14 @@ set(PRIVATE_INCLUDES
     ${SRC_DIR}/Http/Response.h
     ${SRC_DIR}/Http/Request.h
     ${SRC_DIR}/Http/Server.h
+    ${SRC_DIR}/Http/initHandlers.h
 )
 
 set(PRIVATE_SOURCES
     ${SRC_DIR}/Application/Application.cpp
     ${SRC_DIR}/Application/Args.cpp
     ${SRC_DIR}/Http/Server.cpp
+    ${SRC_DIR}/Http/initHandlers.cpp
     ${SRC_DIR}/utils/strFmt.cpp
 )
 

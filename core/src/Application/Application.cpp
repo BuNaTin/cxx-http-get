@@ -6,15 +6,11 @@
 #include <signal.h>
 
 #include <Http/Server.h>
+#include <Http/initHandlers.h>
 
 #include <iostream>
 
 namespace {
-
-void workWithClient(i32 fd) {
-    const u64 size = 32 * 1024;
-    u8 buffer[size] = {0};
-}
 
 std::string getPath(const std::string &file) {
     std::size_t pos = file.find_last_of('/') + 1;
@@ -88,7 +84,11 @@ ApplicationImpl::ApplicationImpl(const u16 port,
     signal(SIGINT, signal_handler);
     m_sig_handler.test_and_set(std::memory_order_acquire);
 
-    m_server = Server::create({.port = port}, m_sig_handler);
+    m_server = Server::create({"0.0.0.0", port}, m_sig_handler);
+
+    if (!m_server) return;
+
+    initHanlders(m_server.get(), shared_folder);
 }
 
 bool ApplicationImpl::start() noexcept {
