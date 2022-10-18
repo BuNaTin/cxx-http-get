@@ -5,6 +5,9 @@
 #include <numeric>
 #include <signal.h>
 
+#include <Http/Server.h>
+#include <Http/initHandlers.h>
+
 #include <iostream>
 
 namespace {
@@ -38,17 +41,15 @@ private:
 public:
     ApplicationImpl(const u16 port,
                     const std::string &shared_folder,
-                    const u32 sig_max,
-                    const u32 buffer_size);
+                    const u32 sig_max);
     virtual ~ApplicationImpl() = default;
 
     // data
 private:
-    const u32 m_buffer_size;
-    std::string m_shared_folder;
+    std::unique_ptr<Server> m_server;
     std::atomic_flag m_sig_handler = ATOMIC_FLAG_INIT;
     u32 m_sig_cnt = 0;
-    u32 m_sig_max = std::numeric_limits<u32>::max();
+    u32 m_sig_max = std::numeric_limits<u32>::max() - 1;
 };
 
 using ABuilder = Application::Builder;
@@ -65,37 +66,36 @@ ABuilder &ABuilder::setSigint(u32 sigint) {
     m_sig_max = sigint;
     return *this;
 }
-ABuilder &ABuilder::setBufferSizeKb(u32 size) {
-    m_kb_buffer_size = size;
-    return *this;
-}
 
 std::unique_ptr<Application> Application::Builder::build() {
     // TODO:
     //  - folder name check
     return std::make_unique<ApplicationImpl>(
-            m_port, m_folder, m_sig_max, m_kb_buffer_size * 1024);
+            m_port, m_folder, m_sig_max);
 }
 
 ApplicationImpl::ApplicationImpl(const u16 port,
                                  const std::string &shared_folder,
-                                 const u32 sig_max,
-                                 const u32 buffer_size)
-        : m_buffer_size(buffer_size),
-          m_shared_folder(shared_folder),
-          m_sig_max(sig_max) {
+                                 const u32 sig_max)
+        : m_sig_max(sig_max) {
     shutdown_handler = [this](int) {
         hadSigint();
     };
     signal(SIGINT, signal_handler);
     m_sig_handler.test_and_set(std::memory_order_acquire);
+
+    m_server = Server::create({"0.0.0.0", port}, m_sig_handler);
+
+    if (!m_server) return;
+
+    initHanlders(m_server.get(), shared_folder);
 }
 
 bool ApplicationImpl::start() noexcept {
-
-    std::cout << "Some application work" << std::endl;
-
-    return true;
+    if (!m_server) {
+        return false;
+    }
+    return m_server->start();
 }
 
 } // namespace http_get

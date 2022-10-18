@@ -12,11 +12,21 @@ set(PUBLIC_INCLUDES
 )
 
 set(PRIVATE_INCLUDES
+    ${SRC_DIR}/utils/strFmt.h
+    ${SRC_DIR}/utils/ClearFile.h
+    ${SRC_DIR}/utils/FileSize.h
+    ${SRC_DIR}/Http/Response.h
+    ${SRC_DIR}/Http/Request.h
+    ${SRC_DIR}/Http/Server.h
+    ${SRC_DIR}/Http/initHandlers.h
 )
 
 set(PRIVATE_SOURCES
     ${SRC_DIR}/Application/Application.cpp
     ${SRC_DIR}/Application/Args.cpp
+    ${SRC_DIR}/Http/Server.cpp
+    ${SRC_DIR}/Http/initHandlers.cpp
+    ${SRC_DIR}/utils/strFmt.cpp
 )
 
 set(SOURCES
@@ -50,3 +60,11 @@ add_library(${CORE_LIB}
 target_link_libraries(${CORE_LIB}
     ${AllLibs}
 )
+
+set(CPACK_GENERATOR DEB)
+set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
+set(CPACK_PACKAGE_VENDOR BuNaTin)
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "BuNaTin <k9687928424@gmail.com>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Cpp simple single-thread sharing folder http server")
+set(CPACK_OUTPUT_CONFIG_FILE "${CMAKE_BINARY_DIR}/lib-cxx-http-get.cpack.cmake")
+include(CPack)

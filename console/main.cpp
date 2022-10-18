@@ -33,9 +33,6 @@ http_get::Application::Builder createFromArgs(const Args &args) {
     if (args.has(ARG_SIGINT)) {
         builder.setSigint(std::stoi(args.get(ARG_SIGINT)));
     }
-    if (args.has(ARG_BUFFER)) {
-        builder.setBufferSizeKb(std::stoi(args.get(ARG_BUFFER)));
-    }
     return builder;
 }
 
