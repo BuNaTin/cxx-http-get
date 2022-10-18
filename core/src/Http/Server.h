@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <types.h>
+#include <functional>
 
 #include <Http/Request.h>
 #include <Http/Response.h>
