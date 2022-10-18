@@ -1,20 +1,17 @@
 #pragma once
 
 #include <atomic>
-#include <string>
 #include <memory>
+#include <string>
 
-#include <Application/Args.h>
-#include <Config/IniConf.h>
+#include <types.h>
 
-namespace my_project {
+namespace http_get {
 
 class Application {
     // interface
 public:
     virtual bool start() noexcept = 0;
-
-    virtual std::atomic_flag &getSigHandler() noexcept = 0;
 
     // constructors
 public:
@@ -25,15 +22,18 @@ public:
 
 class Application::Builder {
 public:
-    Builder &setConfig(const std::string &file_name);
-    Builder &setArgs(const Args &args);
+    Builder &setPort(u16 port);
+    Builder &setFolderName(const std::string &folder);
+    Builder &setSigint(u32 sigint);
+    Builder &setBufferSizeKb(u32 size);
 
     std::unique_ptr<Application> build();
 
 private:
-    const Args* m_args;
-    std::unique_ptr<IniConf> m_config;
-    std::size_t m_sig_max;
+    std::string m_folder = "./";
+    u32 m_sig_max = 3;
+    u32 m_kb_buffer_size = 32; // 32Kb
+    u16 m_port = 8080;
 };
 
-} // namespace Mib3
+} // namespace http_get

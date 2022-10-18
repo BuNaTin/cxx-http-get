@@ -22,6 +22,23 @@ bool processArgs(Args &args, int argc, char *argv[]) noexcept {
     return true;
 }
 
+http_get::Application::Builder createFromArgs(const Args &args) {
+    http_get::Application::Builder builder;
+    if (args.has(ARG_PORT)) {
+        builder.setPort(std::stoi(args.get(ARG_PORT)));
+    }
+    if (args.has(ARG_FOLDER_NAME)) {
+        builder.setFolderName(args.get(ARG_FOLDER_NAME));
+    }
+    if (args.has(ARG_SIGINT)) {
+        builder.setSigint(std::stoi(args.get(ARG_SIGINT)));
+    }
+    if (args.has(ARG_BUFFER)) {
+        builder.setBufferSizeKb(std::stoi(args.get(ARG_BUFFER)));
+    }
+    return builder;
+}
+
 int main(int argc, char *argv[]) {
     Args args;
     if (!processArgs(args, argc, argv)) {
@@ -34,27 +51,19 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if (!args.has(ARG_CONFIG_FILE)) {
-        std::cout << "Should have " ARG_CONFIG_FILE " argument"
-                  << std::endl;
-        std::cerr << args.defaultHelp() << std::endl;
-        return 1;
-    }
+    auto server = createFromArgs(args).build();
 
-    auto application = my_project::Application::Builder()
-                               .setConfig(args.get(ARG_CONFIG_FILE))
-                               .setArgs(args)
-                               .build();
-    if (!application) {
+    if (!server) {
+        std::cerr << "Failed create server, exit" << std::endl;
         return 2;
     }
 
-    if (!application->start()) {
-        std::cerr << "Something goes wrong during app work"
+    if (!server->start()) {
+        std::cerr << "Something goes wrong during server work"
                   << std::endl;
         return 3;
     }
 
-    std::cout << "Work done, shutdown application" << std::endl;
+    std::cout << "Work done, shutdown server" << std::endl;
     return 0;
 }

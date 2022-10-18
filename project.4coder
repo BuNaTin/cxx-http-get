@@ -1,5 +1,5 @@
 version(1);
-project_name = "my_project";
+project_name = "http_get";
 
 patterns = {
 "*.c",
@@ -25,7 +25,7 @@ load_paths = {
 build_linux = "scripts/build.sh";
 rebuild_linux = "scripts/rebuild.sh";
 build_analys_linux = "scripts/build-analys.sh";
-run_linux = "./bin/my_project-console -c config/project.ini";
+run_linux = "./bin/http_get-console -c config/project.ini";
 browse_docs = "scripts/browse-docs.sh";
 
 
@@ -55,7 +55,7 @@ command_list = {
  },
  
  { .name = "run",
-   .out = "*my_project*",
+   .out = "*http_get*",
    .footer_panel = true,
    .save_dirty_files = true,
    .cursor_at_end = true,
