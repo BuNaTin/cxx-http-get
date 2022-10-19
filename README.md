@@ -3,7 +3,7 @@
 Simple, single-thread, concise sharing folder http server, intended for everyday use, has a lot of impact in embedded cause of buffering request reading
 
 <p align="center">
-    <img src="https://github.com/BuNaTin/cxx-http-get/docs/img/web-cxx-http-server.png" />
+    <img src="https://github.com/BuNaTin/cxx-http-get/blob/main/docs/img/web-cxx-http-server.png" />
 </p>
 
 ## Features ##
