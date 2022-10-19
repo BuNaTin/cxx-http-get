@@ -28,4 +28,4 @@ To get and put files use
    - `get file` - put `ip:port` to address field
 2. Curl
    - `get file` - curl http://ip:port/path_to_file --output path_to_save_file
-   - `put file` - curl -X POST -H "Content-Type:application/octet-stream" --data-binary @path_to_file http://ip:port/path_to_put
+   - `put file` - curl -X PUT -H "Content-Type:application/octet-stream" --data-binary @path_to_file http://ip:port/path_to_put

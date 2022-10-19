@@ -22,8 +22,52 @@ std::string urlDecode(const std::string &SRC) {
     return ret;
 }
 
+static const std::string js_input = R"(
+function doupload() {
+    let files = document.getElementById("file").files;
+    for (var i = 0; i < files.length; i++)
+    {
+        fetch(encodeURIComponent(files[i].name), {method:'PUT',body:files[i]});
+    }
+    alert('your file has been uploaded');
+    document.getElementById("file").value = null;
+    location.reload();
+};
+)";
+
+static const std::string input_style = R"CSS(
+<style>
+.button {
+  background-color: #8a92ce;
+  border: none;
+  color: black;
+  padding: 95px 55px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+</style>
+)CSS";
+
+static const std::string html_button = R"BUTTON(
+<h1>Put file to folder:</h1>
+<input  type = "file" 
+        name = "file" 
+        multiple="multiple"
+        id = "file" 
+        class ="button">
+<button onclick = "doupload()" 
+        class ="button"
+        name = "submit"> Upload File </button>
+)BUTTON";
+
 std::string htmlFileList(tinydir_dir &dir, const i32 from = 1) {
-    std::string payload = "<h1>Files:</h1>";
+    std::string payload = "<script>\n" + js_input + "\n</script>";
+    payload += input_style;
+    payload += "<h1>Files:</h1>";
     std::string html = "<li><a href=\"%\">%</a></li>\n";
     for (u32 i = from; i < dir.n_files; ++i) {
         tinydir_file file;
@@ -37,6 +81,8 @@ std::string htmlFileList(tinydir_dir &dir, const i32 from = 1) {
 
         tinydir_next(&dir);
     }
+    payload += html_button;
+
     return payload;
 }
 
@@ -119,7 +165,7 @@ void initHanlders(Http::Server *server,
                            return getDir(shared_folder, req);
                        });
 
-    std::string post_handler = "POST /%";
+    std::string post_handler = "PUT /%";
     server->addHandler(
             post_handler,
             [shared_folder, post_handler](const Http::Request *req) {
