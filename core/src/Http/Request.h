@@ -8,6 +8,7 @@
 
 #include <types.h>
 #include <utils/ClearFile.h>
+#include <utils/GetFolder.h>
 #include <utils/strFmt.h>
 
 namespace http_get { inline namespace Http {
@@ -65,6 +66,10 @@ public:
             return true;
         }
         std::ignore = std::system(
+                utils::strFmt("mkdir -p %", utils::GetFolder(filename))
+                        .c_str());
+
+        std::ignore = std::system(
                 utils::strFmt("mv % %", m_buffer_filename, filename)
                         .c_str());
 
@@ -81,4 +86,4 @@ private:
     bool m_file = false;
 };
 
-}} // namespace Mib3::Http
+}} // namespace http_get::Http
