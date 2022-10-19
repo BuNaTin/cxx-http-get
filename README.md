@@ -20,3 +20,12 @@ Simple, single-thread, concise sharing folder http server, intended for everyday
 ## Installing ##
 
 Create deb packages requers cmake & cpack - just run ./scripts/create-deb.sh
+
+## Work with server ##
+
+To get and put files use
+1. Web browser
+   - `get file` - put `ip:port` to address field
+2. Curl
+   - `get file` - curl http://ip:port/path_to_file --output path_to_save_file
+   - `put file` - curl -X POST -H "Content-Type:application/octet-stream" --data-binary @path_to_file http://ip:port/path_to_put
