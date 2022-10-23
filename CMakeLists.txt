@@ -23,10 +23,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -static -Wall -Wextra -p
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wduplicated-cond -Wduplicated-branches")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wlogical-op -Wnon-virtual-dtor -O3")
 
-include_directories(
-    ${CMAKE_SOURCE_DIR}/core/includes
-)
-
 add_subdirectory(core)
 
 add_subdirectory(console)
