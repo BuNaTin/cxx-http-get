@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 set(CORE_LIB http_get-core)
 
+option(CORE_LIB_SRC_OUT "Include source directories" OFF)
+
 set(INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
@@ -35,11 +37,6 @@ set(SOURCES
     ${PRIVATE_SOURCES}
 )
 
-include_directories(
-    ${SRC_DIR}
-    ${INC_DIR}
-)
-
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 set(ThreadLib
@@ -65,6 +62,22 @@ add_library(${CORE_LIB}
     STATIC
     ${SOURCES}
 )
+
+target_include_directories(${CORE_LIB}
+    PUBLIC
+    ${INC_DIR}
+)
+if(CORE_LIB_SRC_OUT)
+    target_include_directories(${CORE_LIB}
+        PUBLIC
+        ${SRC_DIR}
+    )
+else()
+    target_include_directories(${CORE_LIB}
+        PRIVATE
+        ${SRC_DIR}
+    )
+endif()
 
 target_link_libraries(${CORE_LIB}
     ${AllLibs}
