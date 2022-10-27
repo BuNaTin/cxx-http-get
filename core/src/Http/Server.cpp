@@ -1,18 +1,50 @@
 #include <Http/Server.h>
 
+
+#ifdef __MINGW32__
+
+#include <WinSock2.h>
+#include <mstcpip.h>
+
+#else
+
 #include <arpa/inet.h>
-#include <cstdlib>
-#include <functional>
-#include <future>
 #include <netdb.h>
-#include <numeric>
-#include <signal.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#endif
+
+#include <cstdlib>
+#include <numeric>
+#include <signal.h>
+#include <functional>
 #include <vector>
 
 #include <iostream>
+
+#ifdef __MINGW32__
+// Макросы для выражений зависимых от OS
+#define WIN(exp) exp
+#define NIX(exp)
+
+#else
+
+#define WIN(exp)
+#define NIX(exp) exp
+
+#endif
+
+#ifdef __MINGW32__ // Windows NT
+
+typedef SOCKET Socket;
+
+#else // POSIX
+
+typedef int Socket;
+
+#endif
 
 namespace {
 
@@ -20,7 +52,7 @@ void workWithClient(
         const std::vector<
                 std::pair<std::string, http_get::Server::handler_t>>
                 &handlers,
-        i32 client_desc);
+        Socket client_desc);
 
 /**
  * @brief read TCP package
@@ -32,16 +64,16 @@ void workWithClient(
  * @return true
  * @return false
  */
-bool readRequest(i32 client_desc,
+bool readRequest(Socket client_desc,
                  u8 *data,
                  const i64 size,
                  i64 &read_size);
-bool readContinue(i32 client_desc, u8 *data, const i64 size);
+bool readContinue(Socket client_desc, u8 *data, const i64 size);
 
-bool sendContinue(i32 client_desc);
-bool sendNotImplemented(i32 client_desc);
+bool sendContinue(Socket client_desc);
+bool sendNotImplemented(Socket client_desc);
 
-bool sendResponse(i32 client_desc, const http_get::Response &resp);
+bool sendResponse(Socket client_desc, const http_get::Response &resp);
 
 /**
  * @brief Send long response payload stored in file
@@ -53,7 +85,7 @@ bool sendResponse(i32 client_desc, const http_get::Response &resp);
  * @return true
  * @return false
  */
-bool sendResponse(i32 client_desc,
+bool sendResponse(Socket client_desc,
                   u8 *data,
                   const i64 size,
                   std::ifstream &read_from);
@@ -64,7 +96,7 @@ void workWithClient(
         const std::vector<
                 std::pair<std::string, http_get::Server::handler_t>>
                 &handlers,
-        i32 client_desc) {
+        Socket client_desc) {
     const i64 size = 32 * 1024;
     u8 buffer[size] = {0};
     i64 read_size;
@@ -104,7 +136,7 @@ void workWithClient(
     }
 }
 
-bool readRequest(i32 client_desc,
+bool readRequest(Socket client_desc,
                  u8 *data,
                  const i64 size,
                  i64 &read_size) {
@@ -117,7 +149,7 @@ bool readRequest(i32 client_desc,
     return true;
 }
 
-bool readContinue(i32 client_desc, u8 *data, const i64 size) {
+bool readContinue(Socket client_desc, u8 *data, const i64 size) {
     int read_size = recv(client_desc, data, size, 0);
     if (read_size < 0) {
         std::cerr << "HttpServer couldn't receive message from client "
@@ -133,7 +165,7 @@ bool readContinue(i32 client_desc, u8 *data, const i64 size) {
     return true;
 }
 
-bool sendContinue(i32 client_desc) {
+bool sendContinue(Socket client_desc) {
     const i64 size = 50;
     u8 data[size] =
             "HTTP/1.1 100 Continue\r\nConnection: keep-alive\r\n\r\n";
@@ -146,7 +178,7 @@ bool sendContinue(i32 client_desc) {
     return true;
 }
 
-bool sendNotImplemented(i32 client_desc) {
+bool sendNotImplemented(Socket client_desc) {
     const i64 size = 33;
     u8 data[size] = "HTTP/1.1 501 Not Implemented\r\n\r\n";
 
@@ -158,7 +190,7 @@ bool sendNotImplemented(i32 client_desc) {
     return true;
 }
 
-bool sendResponse(i32 client_desc, const http_get::Response &resp) {
+bool sendResponse(Socket client_desc, const http_get::Response &resp) {
     const std::string &data = resp.create();
     if (send(client_desc, data.c_str(), data.size(), 0) < 0) {
         std::cerr << "Can't send response to " << client_desc
@@ -168,7 +200,7 @@ bool sendResponse(i32 client_desc, const http_get::Response &resp) {
     return true;
 }
 
-bool sendResponse(i32 client_desc,
+bool sendResponse(Socket client_desc,
                   u8 *data,
                   const i64 size,
                   std::ifstream &read_from) {
@@ -200,7 +232,7 @@ public:
 public:
     ServerImpl(i32 fd, std::atomic_flag &stop)
             : m_stop(stop), m_fd(fd) {}
-    ~ServerImpl() = default;
+    ~ServerImpl();
 
 private:
     std::vector<std::pair<std::string, handler_t>> m_data;
@@ -210,8 +242,63 @@ private:
 
 std::unique_ptr<Server> Server::create(const Server::Settings &settings,
                                        std::atomic_flag &m_stop) {
-    int socket_desc;
+    Socket socket_desc;
+#ifdef __MINGW32__
+    socket_desc = INVALID_SOCKET;
+
+    struct addrinfo *result = NULL;
+    struct addrinfo hints;
+
+    int iSendResult;
+    char recvbuf[DEFAULT_BUFLEN];
+    int recvbuflen = DEFAULT_BUFLEN;
+    
+    // Initialize Winsock
+    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed with error: %d\n", iResult);
+        return 1;
+    }
+
+    ZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = AI_PASSIVE;
+
+    // Resolve the server address and port
+    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
+    if ( iResult != 0 ) {
+        printf("getaddrinfo failed with error: %d\n", iResult);
+        WSACleanup();
+        return 1;
+    }
+
+    // Create a SOCKET for the server to listen for client connections.
+    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (ListenSocket == INVALID_SOCKET) {
+        printf("socket failed with error: %ld\n", WSAGetLastError());
+        freeaddrinfo(result);
+        WSACleanup();
+        return 1;
+    }
+
+    // Setup the TCP listening socket
+    iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        printf("bind failed with error: %d\n", WSAGetLastError());
+        freeaddrinfo(result);
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    freeaddrinfo(result);
+
+#else
     struct sockaddr_in server_addr;
+
+    WIN(if(WSAStartup(MAKEWORD(2, 2), &w_data) == 0) {})
 
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -242,6 +329,9 @@ std::unique_ptr<Server> Server::create(const Server::Settings &settings,
                   << std::endl;
         return nullptr;
     }
+#endif
+
+
     return std::make_unique<ServerImpl>(socket_desc, m_stop);
 }
 
@@ -296,6 +386,10 @@ Server *ServerImpl::addHandler(const std::string &pattern,
                                Server::handler_t &&handler) noexcept {
     m_data.push_back({pattern, std::move(handler)});
     return this;
+}
+
+ServerImpl::~ServerImpl() {
+    WIN(WSACleanup());
 }
 
 }} // namespace http_get::Http
