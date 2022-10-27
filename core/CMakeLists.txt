@@ -45,11 +45,20 @@ find_package(Threads REQUIRED)
 set(ThreadLib
     Threads::Threads
 )
+# stay empty at posix
+set(WINSOCK)
 
 add_subdirectory(${LIB_DIR})
 
+if(WIN32)
+
+set(WINSOCK wsock32)
+
+endif()
+
 set(AllLibs
     ${ThreadLib}
+    ${WINSOCK}
 )
 
 add_library(${CORE_LIB}

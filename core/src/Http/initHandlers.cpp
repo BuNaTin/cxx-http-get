@@ -3,6 +3,17 @@
 #include <Filesystem/tinydir.h>
 #include <Http/Server.h>
 
+
+#ifdef __MINGW32__
+
+static char sep = '\\';
+
+#else
+
+static char sep = '/';
+
+#endif
+
 namespace {
 
 std::string urlDecode(const std::string &SRC) {
@@ -65,7 +76,7 @@ static const std::string html_button = R"BUTTON(
 )BUTTON";
 
 std::string htmlFileList(tinydir_dir &dir, const i32 from = 1) {
-    std::string payload = "<script>\n" + js_input + "\n</script>";
+    std::string payload = "<!DOCTYPE html><html><script>\n" + js_input + "\n</script>";
     payload += input_style;
     payload += "<h1>Files:</h1>";
     std::string html = "<li><a href=\"%\">%</a></li>\n";
@@ -83,14 +94,14 @@ std::string htmlFileList(tinydir_dir &dir, const i32 from = 1) {
     }
     payload += html_button;
 
-    return payload;
+    return payload + "</html>";
 }
 
 http_get::Response getFile(const std::string &shared_folder,
                            const std::string &req_pattern,
                            const http_get::Request *req) {
     std::string filename =
-            shared_folder + "/" +
+            shared_folder + sep +
             urlDecode(utils::value(req_pattern, req->query()));
 
     std::fstream fileOrDir(filename);
@@ -136,7 +147,7 @@ http_get::Response postFile(const std::string &shared_folder,
                             const std::string &req_pattern,
                             const http_get::Request *req) {
     std::string filename =
-            shared_folder + "/" +
+            shared_folder + sep +
             urlDecode(utils::value(req_pattern, req->query()));
 
     req->copyTo(filename);

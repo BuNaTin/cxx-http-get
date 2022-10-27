@@ -1,10 +1,9 @@
 #include <Http/Server.h>
 
-
 #ifdef __MINGW32__
 
-#include <WinSock2.h>
-#include <mstcpip.h>
+#include <winsock.h>
+// #include <mstcpip.h>
 
 #else
 
@@ -17,9 +16,9 @@
 #endif
 
 #include <cstdlib>
+#include <functional>
 #include <numeric>
 #include <signal.h>
-#include <functional>
 #include <vector>
 
 #include <iostream>
@@ -39,10 +38,12 @@
 #ifdef __MINGW32__ // Windows NT
 
 typedef SOCKET Socket;
+typedef char data_t;
 
 #else // POSIX
 
 typedef int Socket;
+typedef u8 data_t;
 
 #endif
 
@@ -65,10 +66,10 @@ void workWithClient(
  * @return false
  */
 bool readRequest(Socket client_desc,
-                 u8 *data,
+                 data_t *data,
                  const i64 size,
                  i64 &read_size);
-bool readContinue(Socket client_desc, u8 *data, const i64 size);
+bool readContinue(Socket client_desc, data_t *data, const i64 size);
 
 bool sendContinue(Socket client_desc);
 bool sendNotImplemented(Socket client_desc);
@@ -86,7 +87,7 @@ bool sendResponse(Socket client_desc, const http_get::Response &resp);
  * @return false
  */
 bool sendResponse(Socket client_desc,
-                  u8 *data,
+                  data_t *data,
                   const i64 size,
                   std::ifstream &read_from);
 
@@ -98,10 +99,10 @@ void workWithClient(
                 &handlers,
         Socket client_desc) {
     const i64 size = 32 * 1024;
-    u8 buffer[size] = {0};
+    data_t buffer[size];
     i64 read_size;
     if (!readRequest(client_desc, buffer, size, read_size)) return;
-    u8 *end = buffer + read_size;
+    data_t *end = buffer + read_size;
 
     std::unique_ptr<http_get::Request> cur_req =
             std::make_unique<http_get::Request>(buffer, end);
@@ -130,17 +131,20 @@ void workWithClient(
         return;
     }
     // data is big & stored in file
-    std::ifstream read_from_stream(response.readFrom());
+    std::ifstream read_from_stream(response.readFrom(), std::ios::binary);
+    if(!read_from_stream) {
+        std::cerr << "Wrong stream to read from" << std::endl;
+    }
     while (sendResponse(client_desc, buffer, size, read_from_stream)) {
         ; // do literally nothing, just send data
     }
 }
 
 bool readRequest(Socket client_desc,
-                 u8 *data,
+                 data_t *data,
                  const i64 size,
                  i64 &read_size) {
-    read_size = recv(client_desc, data, size, 0);
+    read_size = recv(client_desc, WIN((char *)) data, size, 0);
     if (read_size < 0) {
         std::cerr << "HttpServer couldn't receive message from client "
                   << client_desc << std::endl;
@@ -149,8 +153,8 @@ bool readRequest(Socket client_desc,
     return true;
 }
 
-bool readContinue(Socket client_desc, u8 *data, const i64 size) {
-    int read_size = recv(client_desc, data, size, 0);
+bool readContinue(Socket client_desc, data_t *data, const i64 size) {
+    int read_size = recv(client_desc, WIN((char *)) data, size, 0);
     if (read_size < 0) {
         std::cerr << "HttpServer couldn't receive message from client "
                   << client_desc << std::endl;
@@ -167,7 +171,7 @@ bool readContinue(Socket client_desc, u8 *data, const i64 size) {
 
 bool sendContinue(Socket client_desc) {
     const i64 size = 50;
-    u8 data[size] =
+    data_t data[size] =
             "HTTP/1.1 100 Continue\r\nConnection: keep-alive\r\n\r\n";
 
     if (send(client_desc, data, size, 0) < 0) {
@@ -180,7 +184,7 @@ bool sendContinue(Socket client_desc) {
 
 bool sendNotImplemented(Socket client_desc) {
     const i64 size = 33;
-    u8 data[size] = "HTTP/1.1 501 Not Implemented\r\n\r\n";
+    data_t data[size] = "HTTP/1.1 501 Not Implemented\r\n\r\n";
 
     if (send(client_desc, data, size, 0) < 0) {
         std::cerr << "Can't send 501-not-implemented to " << client_desc
@@ -201,7 +205,7 @@ bool sendResponse(Socket client_desc, const http_get::Response &resp) {
 }
 
 bool sendResponse(Socket client_desc,
-                  u8 *data,
+                  data_t *data,
                   const i64 size,
                   std::ifstream &read_from) {
     std::fill(data, data + size, '\0');
@@ -246,65 +250,42 @@ std::unique_ptr<Server> Server::create(const Server::Settings &settings,
 #ifdef __MINGW32__
     socket_desc = INVALID_SOCKET;
 
-    struct addrinfo *result = NULL;
-    struct addrinfo hints;
+    WSAData w_data;
 
-    int iSendResult;
-    char recvbuf[DEFAULT_BUFLEN];
-    int recvbuflen = DEFAULT_BUFLEN;
-    
-    // Initialize Winsock
-    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (iResult != 0) {
-        printf("WSAStartup failed with error: %d\n", iResult);
-        return 1;
+    if (WSAStartup(MAKEWORD(1, 1), &w_data) != 0) {
+        std::cerr << "Error while set winsock version" << std::endl;
+        return nullptr;
     }
 
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_PASSIVE;
-
-    // Resolve the server address and port
-    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
-    if ( iResult != 0 ) {
-        printf("getaddrinfo failed with error: %d\n", iResult);
-        WSACleanup();
-        return 1;
+    sockaddr_in address;
+    // Создание TCP сокета
+    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_desc == INVALID_SOCKET) {
+        std::cerr << "Error create winsocket" << std::endl;
+        return nullptr;
     }
 
-    // Create a SOCKET for the server to listen for client connections.
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (ListenSocket == INVALID_SOCKET) {
-        printf("socket failed with error: %ld\n", WSAGetLastError());
-        freeaddrinfo(result);
-        WSACleanup();
-        return 1;
-    }
+    new (&address) sockaddr_in;
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = inet_addr(settings.address.c_str());
+    address.sin_port = htons(settings.port);
 
-    // Setup the TCP listening socket
-    iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-    if (iResult == SOCKET_ERROR) {
-        printf("bind failed with error: %d\n", WSAGetLastError());
-        freeaddrinfo(result);
-        closesocket(ListenSocket);
-        WSACleanup();
-        return 1;
+    if (bind(socket_desc, (sockaddr *)&address, sizeof(address)) != 0) {
+        std::cerr << "Could not bind socket" << std::endl;
+        return nullptr;
     }
+    // u_long mode = 1;  // 1 to enable non-blocking socket
+    // ioctlsocket(socket_desc, FIONBIO, &mode);
 
-    freeaddrinfo(result);
+    std::cout << "Create winsock" << std::endl;
 
 #else
     struct sockaddr_in server_addr;
 
-    WIN(if(WSAStartup(MAKEWORD(2, 2), &w_data) == 0) {})
-
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 
     if (socket_desc < 0) {
-        std::cerr << "HttpServer: could not create socket"
-                  << std::endl;
+        std::cerr << "HttpServer: could not create socket" << std::endl;
         return nullptr;
     }
     server_addr.sin_family = AF_INET;
@@ -317,8 +298,7 @@ std::unique_ptr<Server> Server::create(const Server::Settings &settings,
                    SO_REUSEADDR,
                    &reuseaddr,
                    sizeof(int)) < 0) {
-        std::cerr << "HttpServer: Could not reuse port"
-                  << std::endl;
+        std::cerr << "HttpServer: Could not reuse port" << std::endl;
         return nullptr;
     }
 
@@ -331,19 +311,44 @@ std::unique_ptr<Server> Server::create(const Server::Settings &settings,
     }
 #endif
 
-
     return std::make_unique<ServerImpl>(socket_desc, m_stop);
 }
 
 bool ServerImpl::start() noexcept {
+#ifdef __MINGW32__
+    // DO NOTHING YET
+
+    std::cout << "Start winserver" << std::endl;
+    if (listen(m_fd, 10) != 0) {
+        std::cerr << "Server could not listen" << std::endl;
+        return false;
+    }
+    std::cout << "Listen..." << std::endl;
+
+    // we will need variables to hold the client socket.
+    // thus we declare them here.
+    SOCKET client;
+    sockaddr_in from;
+    int fromlen = sizeof(from);
+
+    while (m_stop.test_and_set(std::memory_order_acquire)) {
+        // accept() will accept an incoming
+        // client connection
+        client = accept(m_fd, (struct sockaddr *)&from, &fromlen);
+
+        workWithClient(m_data, client);
+
+        closesocket(client);
+    }
+    closesocket(m_fd);
+#else // POSIX
     if (m_fd == -1) {
         std::cerr << "Wrong fd" << std::endl;
         return false;
     }
 
     if (listen(m_fd, 1) < 0) {
-        std::cerr << "HttpServer: err while listening"
-                  << std::endl;
+        std::cerr << "HttpServer: err while listening" << std::endl;
         return false;
     }
 
@@ -355,6 +360,7 @@ bool ServerImpl::start() noexcept {
     fd_set dummy;
 
     std::cout << "HttpServer listening" << std::endl;
+
     while (m_stop.test_and_set(std::memory_order_acquire)) {
         FD_ZERO(&dummy);
         FD_SET(m_fd, &dummy);
@@ -378,6 +384,7 @@ bool ServerImpl::start() noexcept {
                       << client_sock << std::endl;
         }
     }
+#endif
     m_stop.clear();
     return true;
 }
@@ -388,8 +395,6 @@ Server *ServerImpl::addHandler(const std::string &pattern,
     return this;
 }
 
-ServerImpl::~ServerImpl() {
-    WIN(WSACleanup());
-}
+ServerImpl::~ServerImpl() { WIN(WSACleanup()); }
 
 }} // namespace http_get::Http

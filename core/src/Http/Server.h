@@ -22,7 +22,7 @@ public:
 public:
     struct Settings {
         std::string address = "0.0.0.0";
-        u16 port = 8080;
+        u16 port = 5678;
     };
 
     static std::unique_ptr<Server> create(const Settings &settings,

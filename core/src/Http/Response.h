@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <string>
 #include <types.h>
 #include <utils/FileSize.h>
@@ -34,7 +35,7 @@ public:
     Response &content(const std::string &type) {
         m_content_type = type;
         return *this;
-    } 
+    }
 
     bool needContinue() const { return !m_read_from.empty(); }
 
@@ -42,6 +43,8 @@ public:
 
     std::string create() const {
         if (!m_read_from.empty()) {
+            std::cout << "Send file [" << m_read_from << "] size "
+                      << utils::FileSize(m_read_from.c_str()) << '\n';
             return utils::strFmt(m_template,
                                  m_code,
                                  m_str_code,
@@ -62,9 +65,9 @@ private:
     const std::string m_template =
             "HTTP/1.1 % %\r\n"
             "Server: audi\r\n"
-            "Connection:%\r\n" // keep-alive | close
+            "Connection:%\r\n"   // keep-alive | close
             "Content-type:%\r\n" // multipart/form-data
-                                                        // | text/plain
+                                 // | text/plain
             "Content-Length: %\r\n\r\n";
     std::string m_read_from;
     std::string m_data;
@@ -75,4 +78,4 @@ private:
     b32 m_expected_continue = false;
 };
 
-}} // namespace Mib3::Http
+}} // namespace http_get::Http
