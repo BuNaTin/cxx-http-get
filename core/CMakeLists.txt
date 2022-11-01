@@ -40,7 +40,7 @@ set(SOURCES
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 set(ThreadLib
-    Threads::Threads
+    -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
 )
 # stay empty at posix
 set(WINSOCK)

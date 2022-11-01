@@ -9,16 +9,21 @@
 
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #endif
 
+#include <chrono>
 #include <cstdlib>
 #include <functional>
 #include <numeric>
 #include <signal.h>
+#include <thread>
+#include <utils/ThreadPool.h>
 #include <vector>
 
 #include <iostream>
@@ -49,7 +54,13 @@ typedef u8 data_t;
 
 namespace {
 
-void workWithClient(
+void handleClient(
+        const std::vector<
+                std::pair<std::string, http_get::Server::handler_t>>
+                &handlers,
+        Socket client_desc);
+
+bool workWithClient(
         const std::vector<
                 std::pair<std::string, http_get::Server::handler_t>>
                 &handlers,
@@ -91,24 +102,51 @@ bool sendResponse(Socket client_desc,
                   const i64 size,
                   std::ifstream &read_from);
 
+bool enableKeepAlive(Socket socket);
+
 // implementation
 
-void workWithClient(
+void handleClient(
+        const std::vector<
+                std::pair<std::string, http_get::Server::handler_t>>
+                &handlers,
+        Socket client_sock) {
+    if (!enableKeepAlive(client_sock)) {
+        std::cerr << "Could not enable keep alive" << std::endl;
+    }
+    while (workWithClient(handlers, client_sock)) {
+        ;
+    }
+    shutdown(client_sock, SHUT_RDWR);
+    if (close(client_sock) < 0) {
+        std::cerr << "HttpServer could not close client " << client_sock
+                  << std::endl;
+    }
+    std::cout << "Close client_" << client_sock << std::endl;
+}
+
+bool workWithClient(
         const std::vector<
                 std::pair<std::string, http_get::Server::handler_t>>
                 &handlers,
         Socket client_desc) {
     const i64 size = 32 * 1024;
     data_t buffer[size];
-    i64 read_size;
-    if (!readRequest(client_desc, buffer, size, read_size)) return;
+    i64 read_size = 0;
+    if (!readRequest(client_desc, buffer, size, read_size)) {
+        std::cerr << "No request" << std::endl;
+        return false;
+    }
     data_t *end = buffer + read_size;
 
     std::unique_ptr<http_get::Request> cur_req =
             std::make_unique<http_get::Request>(buffer, end);
     if (cur_req->needContinue()) {
         i64 need_size = cur_req->payloadSize();
-        if (!sendContinue(client_desc)) return;
+        if (!sendContinue(client_desc)) {
+            std::cout << "Can't send continue" << std::endl;
+            return false;
+        }
         while (need_size > 0 &&
                readRequest(client_desc, buffer, size, read_size) &&
                read_size) {
@@ -123,21 +161,27 @@ void workWithClient(
             handlers.begin(), handlers.end(), handler_filter);
     // did not find any handler
     if (p_handler == handlers.end()) {
-        return (void)sendNotImplemented(client_desc);
+        (void)sendNotImplemented(client_desc);
+        return true;
+    }
+    if (cur_req->needClose()) {
+        std::cout << "Need close \n";
     }
     http_get::Response response = p_handler->second(cur_req->fin());
     if (!sendResponse(client_desc, response) ||
         !response.needContinue()) {
-        return;
+        return true;
     }
     // data is big & stored in file
-    std::ifstream read_from_stream(response.readFrom(), std::ios::binary);
-    if(!read_from_stream) {
+    std::ifstream read_from_stream(response.readFrom(),
+                                   std::ios::binary);
+    if (!read_from_stream) {
         std::cerr << "Wrong stream to read from" << std::endl;
     }
     while (sendResponse(client_desc, buffer, size, read_from_stream)) {
         ; // do literally nothing, just send data
     }
+    return true;
 }
 
 bool readRequest(Socket client_desc,
@@ -148,6 +192,9 @@ bool readRequest(Socket client_desc,
     if (read_size < 0) {
         std::cerr << "HttpServer couldn't receive message from client "
                   << client_desc << std::endl;
+        return false;
+    }
+    if (read_size == 0) {
         return false;
     }
     return true;
@@ -183,8 +230,9 @@ bool sendContinue(Socket client_desc) {
 }
 
 bool sendNotImplemented(Socket client_desc) {
-    const i64 size = 33;
-    data_t data[size] = "HTTP/1.1 501 Not Implemented\r\n\r\n";
+    const i64 size = 52;
+    data_t data[size] =
+            "HTTP/1.1 501 Not Implemented\r\nConnection: close\r\n\r\n";
 
     if (send(client_desc, data, size, 0) < 0) {
         std::cerr << "Can't send 501-not-implemented to " << client_desc
@@ -218,6 +266,42 @@ bool sendResponse(Socket client_desc,
                   << std::endl;
         return false;
     }
+    return true;
+}
+
+bool enableKeepAlive(Socket socket) {
+    int yes = 1;
+    if (setsockopt(
+                socket, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(int)) <
+        0) {
+        return false;
+    }
+
+    int idle = 1;
+    if (setsockopt(
+                socket, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(int)) <
+        0) {
+        return false;
+    }
+
+    int interval = 1;
+    if (setsockopt(socket,
+                   IPPROTO_TCP,
+                   TCP_KEEPINTVL,
+                   &interval,
+                   sizeof(int)) < 0) {
+        return false;
+    }
+
+    int maxpkt = 2;
+    if (setsockopt(socket,
+                   IPPROTO_TCP,
+                   TCP_KEEPCNT,
+                   &maxpkt,
+                   sizeof(int)) < 0) {
+        return false;
+    }
+
     return true;
 }
 
@@ -352,6 +436,8 @@ bool ServerImpl::start() noexcept {
         return false;
     }
 
+    BS::thread_pool_light thread_pool{4};
+
     int client_sock, client_size;
     struct sockaddr_in client_addr;
     client_size = sizeof(client_addr);
@@ -366,7 +452,6 @@ bool ServerImpl::start() noexcept {
         FD_SET(m_fd, &dummy);
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
-        // std::cout << "HttpServer - tik" << std::endl;
         if (select(m_fd + 1, &dummy, NULL, NULL, &timeout) <= 0) {
             continue;
         };
@@ -377,15 +462,16 @@ bool ServerImpl::start() noexcept {
             std::cerr << "HttpServer couldnot accept" << std::endl;
             return false;
         }
-        // std::cout << "Client number_" << client_sock << std::endl;
-        workWithClient(m_data, client_sock);
-        if (close(client_sock) < 0) {
-            std::cerr << "HttpServer could not close client "
-                      << client_sock << std::endl;
-        }
+
+        std::cout << "Client number_" << client_sock << std::endl;
+
+        thread_pool.push_task(handleClient, m_data, client_sock);
     }
 #endif
     m_stop.clear();
+
+    std::cout << "Wait for handlers" << std::endl;
+    thread_pool.wait_for_tasks();
     return true;
 }
 

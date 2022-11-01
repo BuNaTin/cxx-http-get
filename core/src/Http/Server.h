@@ -21,8 +21,8 @@ public:
     // constructors
 public:
     struct Settings {
-        std::string address = "0.0.0.0";
-        u16 port = 5678;
+        std::string address;
+        u16 port;
     };
 
     static std::unique_ptr<Server> create(const Settings &settings,

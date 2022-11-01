@@ -71,7 +71,7 @@ private:
             "Content-Length: %\r\n\r\n";
     std::string m_read_from;
     std::string m_data;
-    std::string m_connection_type = "close";
+    std::string m_connection_type = "keep-alive";
     std::string m_str_code = "OK";
     std::string m_content_type = "application/octet-stream";
     u32 m_code = 200;
