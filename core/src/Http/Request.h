@@ -17,7 +17,11 @@ class Request {
 public:
     Request(const std::string &data) : m_data(data) {}
     template<typename Iter>
-    Request(Iter l, Iter r) : m_data(l, r) {}
+    Request(Iter l, Iter r) : m_data(l, r) {
+        if(m_data.find("Connection: close") != std::string::npos) {
+            m_close_conn = true;
+        }
+    }
     ~Request() {
         if (m_file) {
             m_buffer.close();
@@ -78,12 +82,16 @@ public:
     bool needContinue() const {
         return m_data.find("Expect: 100-continue") != std::string::npos;
     }
+    bool needClose() const {
+        return m_close_conn;
+    }
 
 private:
     const std::string m_buffer_filename = "tmp";
     const std::string m_data;
     std::fstream m_buffer;
     bool m_file = false;
+    bool m_close_conn = false;
 };
 
 }} // namespace http_get::Http
