@@ -4,12 +4,30 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <random>
 #include <tuple>
 
 #include <types.h>
 #include <utils/ClearFile.h>
 #include <utils/GetFolder.h>
 #include <utils/strFmt.h>
+
+namespace {
+
+std::string random_string(size_t length) {
+    auto randchar = []() -> char {
+        const char charset[] = "0123456789"
+                               "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                               "abcdefghijklmnopqrstuvwxyz";
+        const size_t max_index = (sizeof(charset) - 1);
+        return charset[rand() % max_index];
+    };
+    std::string str(length, 0);
+    std::generate_n(str.begin(), length, randchar);
+    return str;
+}
+
+} // namespace
 
 namespace http_get { inline namespace Http {
 
@@ -18,7 +36,7 @@ public:
     Request(const std::string &data) : m_data(data) {}
     template<typename Iter>
     Request(Iter l, Iter r) : m_data(l, r) {
-        if(m_data.find("Connection: close") != std::string::npos) {
+        if (m_data.find("Connection: close") != std::string::npos) {
             m_close_conn = true;
         }
     }
@@ -69,6 +87,7 @@ public:
             copy_to << this->body();
             return true;
         }
+        
         std::ignore = std::system(
                 utils::strFmt("mkdir -p %", utils::GetFolder(filename))
                         .c_str());
@@ -82,12 +101,10 @@ public:
     bool needContinue() const {
         return m_data.find("Expect: 100-continue") != std::string::npos;
     }
-    bool needClose() const {
-        return m_close_conn;
-    }
+    bool needClose() const { return m_close_conn; }
 
 private:
-    const std::string m_buffer_filename = "tmp";
+    const std::string m_buffer_filename = random_string(5);
     const std::string m_data;
     std::fstream m_buffer;
     bool m_file = false;
