@@ -1,10 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <string>
 #include <random>
+#include <string>
 #include <tuple>
 
 #include <types.h>
@@ -87,14 +88,21 @@ public:
             copy_to << this->body();
             return true;
         }
-        
-        std::ignore = std::system(
-                utils::strFmt("mkdir -p %", utils::GetFolder(filename))
-                        .c_str());
 
-        std::ignore = std::system(
-                utils::strFmt("mv % %", m_buffer_filename, filename)
-                        .c_str());
+        namespace fs = std::filesystem;
+        try {
+            fs::path path_to(filename);
+            path_to.remove_filename();
+            if (!path_to.empty()) {
+                fs::create_directories(path_to);
+            }
+            fs::rename(m_buffer_filename, filename);
+        } catch (std::runtime_error &err) {
+            std::cerr << "Could not move " << m_buffer_filename
+                      << " to " << filename << " [" << err.what() << ']'
+                      << std::endl;
+            return false;
+        }
 
         return true;
     }
